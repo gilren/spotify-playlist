@@ -2,18 +2,18 @@
   <div class="container">
     <h1>{{ msg }}</h1>
     <button v-on:click="fetchAuth" type="button" name="button">Sign in</button>
-
+    <p>Total Removed tracks : {{ removedTracks.total }}</p>
+    <p v-for='item in removedTracks.items' track-by="$index">{{ item }}</p>
     <div class="row">
       <div class="col-md-6" v-for='item in tracksLists.items' track-by="$index">
        <article>
          <h2>{{ item.year }}</h2>
            <div class="row">
-         <div class="col-md-3" v-for='track in item.tracks' track-by="$index">
-            <h3>{{ $index }}</h3>
-            <p>{{ track.name }}</p>
-            <p>{{ track.album.year }}</p>
-          </div>
+         <textarea>
+           {{ item.tracks }}
+         </textarea>
        </article>
+          </div>
      </div>
     </div>
   </div>
@@ -27,26 +27,31 @@ let config = {
   stateKey: 'spotify_auth_state',
   queryParams: {
     client_id: '831eb2150ccc4193b32ea7a2a82dd9b0',
-    client_secret: 'd3b19ac433c84174aae210703cb5edc6',
     response_type: 'token',
     redirect_uri: 'http://localhost:8080/',
     scope: 'playlist-read-private playlist-modify-public user-follow-read playlist-read-collaborative',
     state: ''
   },
-  redirectUrl: 'https://accounts.spotify.com/authorize?',
+  delayBetweenAjaxCalls: 600,
+  bigDelayBetweenAjaxCalls: 3600,
   limitAlbumsRequest: 20,
-  limitPlaylistTracksRequest: 100
+  limitPlaylistTracksRequest: 100,
+  redirectUrl: 'https://accounts.spotify.com/authorize?',
+  userId: '117725775',
+  playlistId: '5XZwxq9GFaNiKwTKsz41Kr'
 }
-
 export default {
   data () {
     return {
       msg: 'Hello World!',
-      artistAlbums: {
-        albums: [],
-        albumsIds: []
+      tracksLists: {
+        items: [],
+        yearList: []
       },
-      tracksLists: {},
+      removedTracks: {
+        items: [],
+        total: 0
+      },
       spotifyApi: new Spotify(),
       config: config,
       userAuthenticated: false
@@ -97,12 +102,14 @@ export default {
     },
     getPlaylistTracks: function () {
       let self = this
-      let tracksAlbumids = []
       let tracks = []
       let total = 0
+      let tracksAlbumids = []
+      let offset = 0
+      let deleted = 0
       this.msg = 'Loading artist albums'
       this.spotifyApi.setPromiseImplementation(Q)
-      this.spotifyApi.getPlaylistTracks('117725775', '048T2fuVyNIJJXrflJsEk0',
+      this.spotifyApi.getPlaylistTracks(config.userId, config.playlistId,
         {
           market: 'BE',
           limit: config.limitPlaylistTracksRequest,
@@ -110,100 +117,132 @@ export default {
         })
         .then(function (data) {
           total = data.total
-          console.log(total)
 
-          var cptTotal = 0
-          var fetchLimit = Math.floor(total / config.limitPlaylistTracksRequest)
-          var remainder = 0
-          if (total % config.limitPlaylistTracksRequest !== 0) {
-            fetchLimit++
-            remainder = total % config.limitPlaylistTracksRequest
-          }
-          while (cptTotal < fetchLimit) {
-            let offset = cptTotal + config.limitPlaylistTracksRequest
-            self.spotifyApi.getPlaylistTracks('117725775', '048T2fuVyNIJJXrflJsEk0',
-              {
-                market: 'BE',
-                limit: cptTotal === fetchLimit - 1 ? config.limitPlaylistTracksRequest : remainder,
-                fields: 'total,items(track(name,id,album(id)))',
-                offset: offset
-              })
-            .then(function (datab) {
-              datab.items.forEach(function (track) {
-                var myTrack = {
-                  name: track.track.name,
-                  id: track.track.id,
-                  album: {
-                    id: track.track.album.id,
-                    year: ''
-                  }
+          var settingsTracks = self.getIterationandRemainder(total, config.limitPlaylistTracksRequest)
+
+          for (var x = 0, ln = settingsTracks.iterations; x < ln; x++) {
+            setTimeout(function (y) {
+              console.log(' ')
+              console.log('%c ' + y + ' FIRST LOOP : ', 'background: blue; color:#fff')
+
+              var tracksLimit = config.limitPlaylistTracksRequest
+              offset = y * config.limitPlaylistTracksRequest
+
+              if (settingsTracks.remainder > 0 && y === ln - 1) {
+                tracksLimit = tracksLimit - (config.limitPlaylistTracksRequest - settingsTracks.remainder)
+              }
+              self.spotifyApi.getPlaylistTracks(config.userId, config.playlistId,
+                {
+                  market: 'BE',
+                  limit: tracksLimit,
+                  fields: 'total,items(track(name,id,uri,album(id)))',
+                  offset: offset
                 }
-                tracks.push(myTrack)
-                tracksAlbumids.push(track.track.album.id)
-              })
-              let tracksYears = []
-              self.msg = 'Loading years'
-              var cpt = 0
-              // const bite = tracksAlbumids
-              console.log(tracksAlbumids.length)
-              while (cpt < data.total) {
-                var currentLimit = cpt + config.limitAlbumsRequest
-                // var dafuq = bite.slice(cpt, currentLimit)
-                // console.log('cpt : ' + cpt)
-                // console.log(dafuq)
-                // console.log('limit: ' + currentLimit)
-                // console.log('??? : ' + bite.length)
-                // get albums by ids (limit 20)
-                self.spotifyApi.getAlbums(tracksAlbumids.slice(cpt, currentLimit), {market: 'BE'})
-                .then(function (data) {
-                  let responseAlbums = data.albums
-                  for (let i = 0; i < config.limitAlbumsRequest; i++) {
-                    tracksYears.push(responseAlbums[i].release_date.substring(0, 4))
-                    tracks[i].album.year = (responseAlbums[i].release_date.substring(0, 4))
-                  }
-                  // return fetched albums
-                  var returnArray = {
-                    items: [],
-                    yearlist: []
-                  }
-
-                  for (var i = 0; i < tracksYears.length; i++) {
-                    var currentYear = tracksYears[i]
-                    var yearPlaylist = []
-
-                    if (returnArray.items.length === 0 || returnArray.items.length !== 0 && returnArray.yearlist.indexOf(currentYear) === -1) {
-                      yearPlaylist = {
-                        year: currentYear,
-                        tracks: []
-                      }
-                      returnArray.items.push(yearPlaylist)
-                      returnArray.yearlist.push(currentYear)
-                    }
-                  }
-                  for (var j = 0; j < returnArray.items.length; j++) {
-                    for (var k = 0; k < tracks.length; k++) {
-                      if (returnArray.items[j].year === tracks[k].album.year) {
-                        returnArray.items[j].tracks.push(tracks[k])
+              ).then(function (data) {
+                // retrieve data by 100 or remainder
+                data.items.forEach(function (track) {
+                  if (track.track.album.id !== null) {
+                    var myTrack = {
+                      name: track.track.name,
+                      id: track.track.id,
+                      uri: track.track.uri,
+                      album: {
+                        id: track.track.album.id,
+                        year: ''
                       }
                     }
+                    tracks.push(myTrack)
+                    tracksAlbumids.push(track.track.album.id)
+                  } else {
+                    console.log('## track deleted : ' + track.track.name)
+                    self.removedTracks.items.push([track.track.name])
+                    self.removedTracks.total = deleted++
+                    // tracksLimit--
+                    // offset--
                   }
-                  console.log(returnArray)
-                  self.tracksLists = returnArray
-                })
-                .catch(function (error) {
-                  console.error(error)
-                })
-                cpt = cpt + config.limitAlbumsRequest
-              } // end while retrieving albums
-            }).catch(function (error) {
-              console.error(error)
-            })
-            cptTotal++
-          } // end while get tracks
+                }) // end foreach tracks
+
+                var settingsAlbum = self.getIterationandRemainder(tracksLimit, config.limitAlbumsRequest)
+                // start loop album ids
+                var currentOffset = 0
+                var currentLimit = config.limitAlbumsRequest
+
+                for (var a = 0, lo = settingsAlbum.iterations; a < lo; a++) {
+                  setTimeout(function (z) {
+                    currentOffset = z * config.limitAlbumsRequest
+                    currentLimit = z * config.limitAlbumsRequest + config.limitAlbumsRequest
+                    // console.log(z)
+                    if (settingsAlbum.remainder > 0 && y === ln - 1 && z === lo - 1) {
+                      // currentOffset = currentOffset
+                      currentLimit = currentLimit - (config.limitAlbumsRequest - settingsAlbum.remainder)
+                    }
+
+                    console.log(' ')
+                    console.log('%c - ' + z + ' SECOND LOOP ', 'background: #000; color:#fff')
+                    console.log('%c --- ' + currentOffset + ' --- ' + currentLimit, 'background: red; color:#fafafa')
+
+                    self.spotifyApi.getAlbums(tracksAlbumids.slice(offset + currentOffset, offset + currentLimit),
+                      {
+                        market: 'BE'
+                      }
+                    ).then(function (data) {
+                      let responseAlbums = data.albums
+                      for (let i = 0; i < responseAlbums.length; i++) {
+                        var currentElement = offset + currentOffset + i
+                        var currentYear = responseAlbums[i].release_date.substring(0, 4)
+                        var currentTrack = tracks[currentElement]
+                        currentTrack.album.year = currentYear
+
+                        if (self.tracksLists.yearList.indexOf(currentYear) > -1) {
+                          for (let p = 0; p < self.tracksLists.items.length; p++) {
+                            if (self.tracksLists.items[p].year === currentYear) {
+                              // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
+                              self.tracksLists.items[p].tracks.push(currentTrack)
+                            }
+                          }
+                        } else {
+                          // console.log('|| pushing ' + currentYear + ' ||')
+                          self.tracksLists.yearList.push(currentYear)
+                          var myPlaylist = {
+                            year: currentYear,
+                            tracks: []
+                          }
+                          // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
+                          myPlaylist.tracks.push(currentTrack)
+                          self.tracksLists.items.push(myPlaylist)
+                        }
+
+                        // console.log(tracks)
+                        // self.tracksLists.items = allPlaylists
+                        // self.tracksLists.yearList = self.tracksLists.yearList
+                      }
+                    }).catch(function (error) {
+                      console.error(error)
+                    }) // end get album ids
+                  }, a * self.config.delayBetweenAjaxCalls, a)
+                }
+              }).catch(function (error) {
+                console.error(error)
+              }) // end get total tracks catch
+            }, x * self.config.bigDelayBetweenAjaxCalls, x)
+          } // end retrieving albums
+        // end get total tracks
         }).catch(function (error) {
           console.error(error)
-        }) // end get total tracks
+        }) // end get total tracks catch
+    },
+    getIterationandRemainder: function (total, limit) {
+      var out = {
+        iterations: Math.floor(total / limit),
+        remainder: 0
+      }
+      if (total % limit !== 0) {
+        out.iterations++
+        out.remainder = total % limit
+      }
+      return out
     }
+
   },
   ready: function () {
     if (this.verifyAuth()) {
