@@ -9,9 +9,7 @@
        <article>
          <h2>{{ item.year }}</h2>
            <div class="row">
-         <textarea>
-           {{ item.tracks }}
-         </textarea>
+            <textarea cols='60' rows='10'> {{{ item.render }}} </textarea>
        </article>
           </div>
      </div>
@@ -198,6 +196,7 @@ export default {
                             if (self.tracksLists.items[p].year === currentYear) {
                               // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
                               self.tracksLists.items[p].tracks.push(currentTrack)
+                              self.tracksLists.items[p].render = self.tracksLists.items[p].render + (currentTrack.uri + '\n')
                             }
                           }
                         } else {
@@ -205,10 +204,12 @@ export default {
                           self.tracksLists.yearList.push(currentYear)
                           var myPlaylist = {
                             year: currentYear,
-                            tracks: []
+                            tracks: [],
+                            render: ''
                           }
                           // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
                           myPlaylist.tracks.push(currentTrack)
+                          myPlaylist.render = myPlaylist.render + (currentTrack.uri + '\n')
                           self.tracksLists.items.push(myPlaylist)
                         }
 
