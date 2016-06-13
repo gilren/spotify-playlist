@@ -36,7 +36,7 @@ let config = {
   limitPlaylistTracksRequest: 100,
   redirectUrl: 'https://accounts.spotify.com/authorize?',
   userId: '117725775',
-  playlistId: '5XZwxq9GFaNiKwTKsz41Kr'
+  playlistId: '3nOWJDmSq918pfha3oDhlt'
 }
 export default {
   data () {
@@ -194,22 +194,22 @@ export default {
                         if (self.tracksLists.yearList.indexOf(currentYear) > -1) {
                           for (let p = 0; p < self.tracksLists.items.length; p++) {
                             if (self.tracksLists.items[p].year === currentYear) {
-                              // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
+                              console.log('||' + currentElement + '|| ' + currentTrack.album.year + ' pushing --> ' + currentTrack.name)
                               self.tracksLists.items[p].tracks.push(currentTrack)
                               self.tracksLists.items[p].render = self.tracksLists.items[p].render + (currentTrack.uri + '\n')
                             }
                           }
                         } else {
-                          // console.log('|| pushing ' + currentYear + ' ||')
+                          console.log('|| pushing ' + currentYear + ' ||')
                           self.tracksLists.yearList.push(currentYear)
                           var myPlaylist = {
                             year: currentYear,
                             tracks: [],
                             render: ''
                           }
-                          // console.log('||' + currentElement + '|| pushing --> ' + currentTrack.name)
+                          console.log('||' + currentElement + '|| ' + currentTrack.album.year + ' pushing --> ' + currentTrack.name)
                           myPlaylist.tracks.push(currentTrack)
-                          myPlaylist.render = myPlaylist.render + (currentTrack.uri + '\n')
+                          myPlaylist.render += (currentTrack.uri + '\n')
                           self.tracksLists.items.push(myPlaylist)
                         }
 
