@@ -1,11 +1,17 @@
 <template>
+  <section class="deleted-section">
+    <div class="container">
+      <h1>{{ msg }}</h1>
+      <button v-on:click="fetchAuth" type="button" name="button">Sign in</button>
+      <div class="removed-list"><p>Total Removed tracks : {{ removedTracks.total }}</p>
+      <p v-for='item in removedTracks.items' track-by="$index">{{ item }}</p>
+      </div>
+    </div>
+</section>
+<main>
   <div class="container">
-    <h1>{{ msg }}</h1>
-    <button v-on:click="fetchAuth" type="button" name="button">Sign in</button>
-    <p>Total Removed tracks : {{ removedTracks.total }}</p>
-    <p v-for='item in removedTracks.items' track-by="$index">{{ item }}</p>
     <div class="row">
-      <div class="col-md-6" v-for='item in tracksLists.items' track-by="$index">
+      <div class="col-md-4" v-for='item in tracksLists.items' track-by="$index">
        <article>
          <h2>{{ item.year }}</h2>
            <div class="row">
@@ -13,8 +19,9 @@
        </article>
           </div>
      </div>
-    </div>
+   </div>
   </div>
+</main>
 </template>
 
 <script>
@@ -36,7 +43,7 @@ let config = {
   limitPlaylistTracksRequest: 100,
   redirectUrl: 'https://accounts.spotify.com/authorize?',
   userId: '117725775',
-  playlistId: '3nOWJDmSq918pfha3oDhlt'
+  playlistId: '2g9dpD3NDnVkLK6X5BQVSe'
 }
 export default {
   data () {
